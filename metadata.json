@@ -1,0 +1,6 @@
+{
+  "name": "Aurum Capital",
+  "description": "Institutional multi-asset investment and trading platform supporting Gold, USD, Apple, Meta, and Tesla VIP tiers with TRC-20 deposits and daily yield tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
