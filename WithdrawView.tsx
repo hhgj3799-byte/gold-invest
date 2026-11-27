@@ -1,6 +1,14 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ShieldCheck } from 'lucide-react';
-import type { PaymentMethod, PlatformSettings, UserProfile, WithdrawalRecord } from '../types/platform';
+import { ArrowDownToLine, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { t } from '../i18n/translations';
+import type {
+  ActiveTab,
+  PaymentMethod,
+  PlatformSettings,
+  SupportedLanguage,
+  UserProfile,
+  WithdrawalRecord,
+} from '../types/platform';
 import { formatUsd } from '../utils/investment';
 
 interface WithdrawViewProps {
@@ -8,12 +16,14 @@ interface WithdrawViewProps {
   user: UserProfile | null;
   paymentMethods: PaymentMethod[];
   withdrawals: WithdrawalRecord[];
+  lang: SupportedLanguage;
   onSubmitWithdrawal: (payload: {
     paymentMethodName: string;
     walletAddress: string;
     amountUsd: number;
   }) => Promise<void>;
   onOpenAuth: (mode: 'login' | 'register') => void;
+  onNavigate: (tab: ActiveTab) => void;
 }
 
 export function WithdrawView({
@@ -21,17 +31,21 @@ export function WithdrawView({
   user,
   paymentMethods,
   withdrawals,
+  lang,
   onSubmitWithdrawal,
   onOpenAuth,
+  onNavigate,
 }: WithdrawViewProps) {
   const [methodName, setMethodName] = useState(
-    paymentMethods[0]?.name ?? 'Binance (USDT TRC-20)'
+    paymentMethods[0]?.name ?? 'Nagad (P2P)'
   );
   const [walletAddress, setWalletAddress] = useState('');
   const [amountUsd, setAmountUsd] = useState(String(settings.minWithdrawalUsd));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const needsActivation = Boolean(user && user.role !== 'admin' && user.activationStatus !== 'Activated');
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -61,20 +75,38 @@ export function WithdrawView({
     <div className="space-y-6">
       <div className="border-b border-[#1E2736] pb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#F3EFE6]">Withdraw Earnings</h1>
-          <p className="text-sm text-[#9AA4B5] mt-1">
-            Request TRC-20 disbursements from your available yield and referral balance.
-          </p>
+          <h1 className="text-2xl font-bold text-[#F3EFE6]">{t(lang, 'withdrawTitle')}</h1>
+          <p className="text-sm text-[#9AA4B5] mt-1">{t(lang, 'withdrawSubtitle')}</p>
         </div>
         {user && (
           <div className="text-sm">
-            <span className="text-[#9AA4B5]">Available: </span>
+            <span className="text-[#9AA4B5]">{t(lang, 'availableBalance')}: </span>
             <span className="font-mono tabular-nums font-bold text-[#E5C158]">
               {formatUsd(user.balanceUsd)}
             </span>
           </div>
         )}
       </div>
+
+      {user?.fundsFrozen && (
+        <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-center gap-3 text-sm text-amber-200">
+          <ShieldAlert className="w-5 h-5 shrink-0" />
+          <span>{t(lang, 'fundsFrozenBanner')}</span>
+        </div>
+      )}
+
+      {needsActivation && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-100">
+          <span>{t(lang, 'activationRequiredDesc')}</span>
+          <button
+            type="button"
+            onClick={() => onNavigate('deposit')}
+            className="min-h-[38px] px-4 rounded-lg bg-[#D4AF37] text-[#090C11] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {t(lang, 'activateNowBtn')}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <section className="lg:col-span-6 rounded-2xl border border-[#232D3E] bg-[#10151E] p-6">
@@ -89,7 +121,7 @@ export function WithdrawView({
                 onClick={() => onOpenAuth('login')}
                 className="min-h-[44px] px-5 py-2 rounded-xl bg-[#D4AF37] text-[#090C11] text-sm font-semibold cursor-pointer"
               >
-                Sign In
+                {t(lang, 'signIn')}
               </button>
             </div>
           ) : (
@@ -107,7 +139,7 @@ export function WithdrawView({
 
               <div>
                 <label htmlFor="wd-method" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
-                  Receiving Network / Wallet
+                  Receiving Payment Method
                 </label>
                 <select
                   id="wd-method"
@@ -122,8 +154,10 @@ export function WithdrawView({
                   ))}
                   {paymentMethods.length === 0 && (
                     <>
-                      <option value="Binance (USDT TRC-20)">Binance (USDT TRC-20)</option>
+                      <option value="Nagad (P2P)">Nagad (P2P)</option>
+                      <option value="Binance (P2P)">Binance (P2P)</option>
                       <option value="Trust Wallet (USDT TRC-20)">Trust Wallet (USDT TRC-20)</option>
+                      <option value="Trust Wallet (USDT BEP-20)">Trust Wallet (USDT BEP-20)</option>
                     </>
                   )}
                 </select>
@@ -131,7 +165,7 @@ export function WithdrawView({
 
               <div>
                 <label htmlFor="wd-address" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
-                  Your TRC-20 Receiving Address
+                  Your Nagad Number, Binance ID, or USDT Wallet Address
                 </label>
                 <input
                   id="wd-address"
@@ -139,7 +173,7 @@ export function WithdrawView({
                   required
                   value={walletAddress}
                   onChange={(e) => setWalletAddress(e.target.value)}
-                  placeholder="Enter your Tron (TRC-20) wallet address"
+                  placeholder="Enter receiving number / Pay ID / TRC20 or BEP20 address"
                   className="w-full min-h-[44px] rounded-xl border border-[#242E3F] bg-[#090C11] px-3.5 font-mono text-sm text-[#F3EFE6] placeholder-[#616B7D] focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
@@ -162,11 +196,17 @@ export function WithdrawView({
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
+                disabled={loading || user.fundsFrozen || needsActivation}
+                className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <ArrowDownToLine className="w-4 h-4" />
-                <span>{loading ? 'Submitting...' : 'Submit Withdrawal Request'}</span>
+                <span>
+                  {user.fundsFrozen
+                    ? 'Funds Frozen'
+                    : loading
+                      ? 'Submitting...'
+                      : 'Submit Withdrawal Request'}
+                </span>
               </button>
             </form>
           )}

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { CheckSquare, DollarSign, FileSpreadsheet, History, ShieldCheck } from 'lucide-react';
+import { t } from '../i18n/translations';
 import type {
   DepositRecord,
   EarningsRecord,
   FinancialRecord,
   RecordsSubTab,
+  SupportedLanguage,
   TaskRecord,
   UserProfile,
 } from '../types/platform';
@@ -16,13 +18,14 @@ interface RecordsViewProps {
   deposits: DepositRecord[];
   tasks: TaskRecord[];
   financial: FinancialRecord[];
+  lang: SupportedLanguage;
   onOpenAuth: (mode: 'login' | 'register') => void;
 }
 
 const SUB_TABS: Array<{ id: RecordsSubTab; label: string }> = [
   { id: 'earnings', label: 'Earnings Records' },
   { id: 'deposits', label: 'Deposit Records' },
-  { id: 'tasks', label: 'Task Records' },
+  { id: 'tasks', label: 'Task & Ad Records' },
   { id: 'financial', label: 'Financial Records' },
 ];
 
@@ -32,6 +35,7 @@ export function RecordsView({
   deposits,
   tasks,
   financial,
+  lang,
   onOpenAuth,
 }: RecordsViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<RecordsSubTab>('earnings');
@@ -41,9 +45,9 @@ export function RecordsView({
       <div className="rounded-2xl border border-[#232D3E] bg-[#10151E] p-8 text-center space-y-4">
         <ShieldCheck className="w-10 h-10 text-[#D4AF37] mx-auto" />
         <div className="space-y-1">
-          <h1 className="text-xl font-bold text-[#F3EFE6]">Account Records & Ledgers</h1>
+          <h1 className="text-xl font-bold text-[#F3EFE6]">{t(lang, 'recordsTitle')}</h1>
           <p className="text-sm text-[#9AA4B5]">
-            Sign in with your verified Gmail account to view Earnings, Deposit, Task, and Financial records.
+            Sign in to view Earnings, Deposit, Task, Ad Rewards, and Financial records.
           </p>
         </div>
         <button
@@ -51,7 +55,7 @@ export function RecordsView({
           onClick={() => onOpenAuth('login')}
           className="min-h-[44px] px-5 py-2 rounded-xl bg-[#D4AF37] text-[#090C11] text-sm font-semibold cursor-pointer"
         >
-          Sign In
+          {t(lang, 'signIn')}
         </button>
       </div>
     );
@@ -60,13 +64,10 @@ export function RecordsView({
   return (
     <div className="space-y-6">
       <div className="border-b border-[#1E2736] pb-5">
-        <h1 className="text-2xl font-bold text-[#F3EFE6]">Records & Activity Ledgers</h1>
-        <p className="text-sm text-[#9AA4B5] mt-1">
-          Audit your daily yields, extra bonuses, manual TRC-20 deposits, trading tasks, and unified financial ledger.
-        </p>
+        <h1 className="text-2xl font-bold text-[#F3EFE6]">{t(lang, 'recordsTitle')}</h1>
+        <p className="text-sm text-[#9AA4B5] mt-1">{t(lang, 'recordsSubtitle')}</p>
       </div>
 
-      {/* Interactive Segmented Control */}
       <div
         role="tablist"
         aria-label="Record ledger categories"
@@ -93,7 +94,6 @@ export function RecordsView({
         })}
       </div>
 
-      {/* 1. Earnings Records */}
       {activeSubTab === 'earnings' && (
         <section className="rounded-2xl border border-[#232D3E] bg-[#10151E] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#1E2736] flex items-center justify-between">
@@ -107,7 +107,7 @@ export function RecordsView({
           </div>
           {earnings.length === 0 ? (
             <p className="p-8 text-center text-sm text-[#9AA4B5]">
-              No earnings credited yet. Claim daily tasks on active VIP positions or invite partners for 10% referral rewards.
+              No earnings credited yet. Claim daily VIP tasks, watch daily ads, or invite partners for 10% referral rewards.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -142,7 +142,6 @@ export function RecordsView({
         </section>
       )}
 
-      {/* 2. Deposit Records */}
       {activeSubTab === 'deposits' && (
         <section className="rounded-2xl border border-[#232D3E] bg-[#10151E] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#1E2736] flex items-center justify-between">
@@ -156,7 +155,7 @@ export function RecordsView({
           </div>
           {deposits.length === 0 ? (
             <p className="p-8 text-center text-sm text-[#9AA4B5]">
-              No deposit submissions yet. Submit a Binance or Trust Wallet TRC-20 transfer to fund your VIP tier.
+              No deposit submissions yet. Submit a Nagad, Binance P2P, or Trust Wallet transfer to fund your VIP tier.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -207,13 +206,12 @@ export function RecordsView({
         </section>
       )}
 
-      {/* 3. Task Records */}
       {activeSubTab === 'tasks' && (
         <section className="rounded-2xl border border-[#232D3E] bg-[#10151E] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#1E2736] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-[#D4AF37]" />
-              <h2 className="text-base font-semibold text-[#F3EFE6]">Task Records</h2>
+              <h2 className="text-base font-semibold text-[#F3EFE6]">Task & Ad Records</h2>
             </div>
             <span className="text-xs font-mono tabular-nums text-[#E5C158]">
               {tasks.length} entries
@@ -221,7 +219,7 @@ export function RecordsView({
           </div>
           {tasks.length === 0 ? (
             <p className="p-8 text-center text-sm text-[#9AA4B5]">
-              No daily trading tasks completed yet. Once a VIP position is active, claim daily settlement tasks from the Home tab.
+              No daily trading tasks or ad rewards completed yet.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -229,8 +227,8 @@ export function RecordsView({
                 <thead className="bg-[#0B0F17] text-[#8D97A8] border-b border-[#1E2736]">
                   <tr>
                     <th className="px-5 py-3 font-medium">Task</th>
-                    <th className="px-5 py-3 font-medium">VIP Plan · Asset</th>
-                    <th className="px-5 py-3 font-medium">Task Date</th>
+                    <th className="px-5 py-3 font-medium">Source · Asset</th>
+                    <th className="px-5 py-3 font-medium">Date</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium text-right">Reward</th>
                   </tr>
@@ -256,7 +254,6 @@ export function RecordsView({
         </section>
       )}
 
-      {/* 4. Financial Records */}
       {activeSubTab === 'financial' && (
         <section className="rounded-2xl border border-[#232D3E] bg-[#10151E] overflow-hidden">
           <div className="px-5 py-4 border-b border-[#1E2736] flex items-center justify-between">
@@ -287,7 +284,11 @@ export function RecordsView({
                 <tbody className="divide-y divide-[#1B2331]">
                   {financial.map((row) => (
                     <tr key={row.id} className="hover:bg-[#141A25]">
-                      <td className="px-5 py-3.5 font-medium text-[#E5C158] whitespace-nowrap">
+                      <td
+                        className={`px-5 py-3.5 font-medium whitespace-nowrap ${
+                          row.category === 'Plan Expired' ? 'text-rose-300' : 'text-[#E5C158]'
+                        }`}
+                      >
                         {row.category}
                       </td>
                       <td className="px-5 py-3.5 text-[#F3EFE6]">
@@ -311,11 +312,16 @@ export function RecordsView({
                       </td>
                       <td
                         className={`px-5 py-3.5 text-right font-mono tabular-nums font-semibold ${
-                          row.direction === 'Credit' ? 'text-emerald-300' : 'text-rose-300'
+                          row.category === 'Plan Expired'
+                            ? 'text-[#9AA4B5]'
+                            : row.direction === 'Credit'
+                              ? 'text-emerald-300'
+                              : 'text-rose-300'
                         }`}
                       >
-                        {row.direction === 'Credit' ? '+' : '-'}
-                        {formatUsd(row.amountUsd)}
+                        {row.category === 'Plan Expired'
+                          ? formatUsd(row.amountUsd)
+                          : `${row.direction === 'Credit' ? '+' : '-'}${formatUsd(row.amountUsd)}`}
                       </td>
                       <td className="px-5 py-3.5 text-right font-mono tabular-nums text-[#B8C0CE]">
                         {formatUsd(row.balanceAfterUsd)}

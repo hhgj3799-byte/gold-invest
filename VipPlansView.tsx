@@ -1,13 +1,22 @@
 import { useState } from 'react';
-import { Award, Check, Layers, Repeat, Wallet } from 'lucide-react';
+import { Award, Check, Layers, Repeat, ShieldAlert, Wallet } from 'lucide-react';
+import { t } from '../i18n/translations';
 import type {
+  ActiveTab,
   InvestmentPosition,
   PlatformSettings,
   SupportedAsset,
+  SupportedLanguage,
   UserProfile,
   VipPlan,
 } from '../types/platform';
-import { calculateDailyIncome, formatUsd, summarizePortfolio } from '../utils/investment';
+import {
+  calculateDailyIncome,
+  calculateEstimatedMonthlyReturn,
+  formatDurationLabel,
+  formatUsd,
+  summarizePortfolio,
+} from '../utils/investment';
 import { AssetSelector } from './AssetBadge';
 
 interface VipPlansViewProps {
@@ -15,9 +24,11 @@ interface VipPlansViewProps {
   settings: PlatformSettings;
   user: UserProfile | null;
   investments: InvestmentPosition[];
+  lang: SupportedLanguage;
   onDepositForPlan: (plan: VipPlan, asset: SupportedAsset) => void;
   onActivateFromBalance: (plan: VipPlan, asset: SupportedAsset) => Promise<void>;
   onOpenAuth: (mode: 'login' | 'register') => void;
+  onNavigate: (tab: ActiveTab) => void;
 }
 
 export function VipPlansView({
@@ -25,9 +36,11 @@ export function VipPlansView({
   settings,
   user,
   investments,
+  lang,
   onDepositForPlan,
   onActivateFromBalance,
   onOpenAuth,
+  onNavigate,
 }: VipPlansViewProps) {
   const [selectedAssetsByPlan, setSelectedAssetsByPlan] = useState<Record<string, SupportedAsset>>({});
   const [activatingPlanId, setActivatingPlanId] = useState<string | null>(null);
@@ -37,6 +50,18 @@ export function VipPlansView({
 
   function getSelectedAsset(plan: VipPlan): SupportedAsset {
     return selectedAssetsByPlan[plan.id] ?? plan.supportedAssets[0] ?? 'Gold';
+  }
+
+  function handleDepositAction(plan: VipPlan) {
+    if (!user) {
+      onOpenAuth('register');
+      return;
+    }
+    if (user.role !== 'admin' && user.activationStatus !== 'Activated') {
+      onNavigate('deposit');
+      return;
+    }
+    onDepositForPlan(plan, getSelectedAsset(plan));
   }
 
   async function handleBalancePurchase(plan: VipPlan) {
@@ -51,7 +76,7 @@ export function VipPlansView({
       await onActivateFromBalance(plan, asset);
       setFeedback({
         type: 'success',
-        message: `${plan.name} (${asset}) activated from your available balance. You can purchase any VIP tier multiple times.`,
+        message: `${plan.name} (${asset}) activated from your available balance.`,
       });
     } catch (err) {
       setFeedback({
@@ -67,15 +92,13 @@ export function VipPlansView({
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#1E2736] pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-[#F3EFE6]">VIP Investment Plans (VIP 1 – VIP 5)</h1>
-          <p className="text-sm text-[#9AA4B5] mt-1">
-            Fixed daily income of $0.01 per $1 invested · No fixed duration · Unlimited multi-purchase per tier
-          </p>
+          <h1 className="text-2xl font-bold text-[#F3EFE6]">{t(lang, 'vipTiersTitle')}</h1>
+          <p className="text-sm text-[#9AA4B5] mt-1">{t(lang, 'vipTiersSubtitle')}</p>
         </div>
         {user && (
           <div className="rounded-xl border border-[#242E3F] bg-[#10151E] px-4 py-2.5 flex items-center gap-4 text-xs">
             <div>
-              <span className="text-[#9AA4B5]">Available Balance: </span>
+              <span className="text-[#9AA4B5]">{t(lang, 'availableBalance')}: </span>
               <span className="font-mono tabular-nums font-semibold text-[#E5C158]">
                 {formatUsd(user.balanceUsd)}
               </span>
@@ -90,6 +113,22 @@ export function VipPlansView({
           </div>
         )}
       </div>
+
+      {user && user.role !== 'admin' && user.activationStatus !== 'Activated' && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-100">
+          <div className="flex items-start gap-2.5">
+            <ShieldAlert className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+            <span>{t(lang, 'activationRequiredDesc')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('deposit')}
+            className="min-h-[38px] px-4 rounded-lg bg-[#D4AF37] text-[#090C11] font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {t(lang, 'activateNowBtn')}
+          </button>
+        </div>
+      )}
 
       {/* Extra Profit Bonus Notice */}
       <div className="rounded-xl border border-[#D4AF37]/30 bg-[#121822] p-4 flex items-start gap-3">
@@ -117,8 +156,17 @@ export function VipPlansView({
         {vipPlans.map((plan) => {
           const selectedAsset = getSelectedAsset(plan);
           const dailyIncome = calculateDailyIncome(plan.amountUsd, plan.dailyRatePerDollar);
+          const monthlyEstimate = calculateEstimatedMonthlyReturn(
+            plan.amountUsd,
+            plan.monthlyRatePerDollar ?? 0.2
+          );
           const ownedCount = portfolio.tierCounts[plan.id] ?? 0;
-          const canPayFromBalance = Boolean(user && user.balanceUsd >= plan.amountUsd);
+          const canPayFromBalance = Boolean(
+            user &&
+              user.balanceUsd >= plan.amountUsd &&
+              !user.fundsFrozen &&
+              (user.activationStatus === 'Activated' || user.role === 'admin')
+          );
 
           return (
             <article
@@ -131,7 +179,7 @@ export function VipPlansView({
                   <div>
                     <div className="flex items-center gap-2 text-xs text-[#D4AF37]">
                       <Layers className="w-3.5 h-3.5" />
-                      <span>Tier {plan.tierNumber}</span>
+                      <span>Level {plan.tierNumber}</span>
                       {ownedCount > 0 && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -152,19 +200,21 @@ export function VipPlansView({
 
                 <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#1E2736] bg-[#0B0F17] p-3.5 text-xs">
                   <div>
-                    <p className="text-[#8D97A8]">Daily Yield</p>
+                    <p className="text-[#8D97A8]">Daily Yield ($0.01/$1)</p>
                     <p className="font-mono tabular-nums font-semibold text-emerald-300 mt-0.5">
                       {formatUsd(dailyIncome)} / day
                     </p>
                   </div>
                   <div>
-                    <p className="text-[#8D97A8]">Duration</p>
-                    <p className="font-medium text-[#F3EFE6] mt-0.5">{plan.durationLabel}</p>
+                    <p className="text-[#8D97A8]">Est. Monthly ($0.20/$1)</p>
+                    <p className="font-mono tabular-nums font-semibold text-[#E5C158] mt-0.5">
+                      {formatUsd(monthlyEstimate)} / mo
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[#8D97A8]">Yield Rate</p>
-                    <p className="font-mono tabular-nums text-[#F3EFE6] mt-0.5">
-                      ${plan.dailyRatePerDollar.toFixed(2)} per $1
+                    <p className="text-[#8D97A8]">{t(lang, 'fixedTerm')}</p>
+                    <p className="font-medium text-[#F3EFE6] mt-0.5">
+                      {plan.durationLabel || formatDurationLabel(plan.durationDays ?? 30)}
                     </p>
                   </div>
                   <div>
@@ -177,7 +227,7 @@ export function VipPlansView({
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-[#B8C0CE]">Select Target Asset for This Position</p>
+                  <p className="text-xs font-medium text-[#B8C0CE]">Target Asset</p>
                   <AssetSelector
                     assets={plan.supportedAssets}
                     selected={selectedAsset}
@@ -189,31 +239,56 @@ export function VipPlansView({
               </div>
 
               <div className="space-y-2.5 pt-2 border-t border-[#1D2533]">
-                <button
-                  type="button"
-                  onClick={() => onDepositForPlan(plan, selectedAsset)}
-                  className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  Deposit & Purchase {plan.name} ({formatUsd(plan.amountUsd)})
-                </button>
+                {canPayFromBalance ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={activatingPlanId === plan.id}
+                      onClick={() => handleBalancePurchase(plan)}
+                      className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span>
+                        {activatingPlanId === plan.id
+                          ? t(lang, 'activating')
+                          : `${t(lang, 'activateFromBalancePrimary')} (${formatUsd(plan.amountUsd)})`}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDepositAction(plan)}
+                      className="w-full min-h-[40px] rounded-xl border border-[#2C3649] hover:border-[#D4AF37] text-xs font-medium text-[#B8C0CE] hover:text-[#F3EFE6] transition-colors cursor-pointer"
+                    >
+                      {t(lang, 'orDepositExternal')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleDepositAction(plan)}
+                      className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] text-sm font-semibold transition-colors cursor-pointer"
+                    >
+                      Deposit & Purchase {plan.name} ({formatUsd(plan.amountUsd)})
+                    </button>
 
-                <button
-                  type="button"
-                  disabled={activatingPlanId === plan.id || (Boolean(user) && !canPayFromBalance)}
-                  onClick={() => handleBalancePurchase(plan)}
-                  className="w-full min-h-[42px] rounded-xl border border-[#2C3649] hover:border-[#D4AF37] text-xs font-medium text-[#F3EFE6] disabled:opacity-45 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <Wallet className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>
-                    {activatingPlanId === plan.id
-                      ? 'Activating...'
-                      : user
-                        ? canPayFromBalance
-                          ? `Activate Again from Balance (${formatUsd(plan.amountUsd)})`
-                          : `Insufficient Balance for Instant Purchase`
-                        : 'Sign In to Activate from Balance'}
-                  </span>
-                </button>
+                    <button
+                      type="button"
+                      disabled={activatingPlanId === plan.id || Boolean(user)}
+                      onClick={() => handleBalancePurchase(plan)}
+                      className="w-full min-h-[42px] rounded-xl border border-[#2C3649] hover:border-[#D4AF37] text-xs font-medium text-[#F3EFE6] disabled:opacity-45 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Wallet className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>
+                        {user
+                          ? user.fundsFrozen
+                            ? 'Funds Frozen'
+                            : 'Activate Account / Add Balance'
+                          : 'Sign In to Purchase from Balance'}
+                      </span>
+                    </button>
+                  </>
+                )}
 
                 <div className="flex items-center gap-1.5 text-[11px] text-[#8D97A8] justify-center">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />

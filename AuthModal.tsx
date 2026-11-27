@@ -1,13 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { KeyRound, Mail, ShieldCheck, UserPlus, X } from 'lucide-react';
-import { apiFetch, ApiError } from '../api/client';
-import { validateGmailAddress } from '../utils/investment';
+import { KeyRound, Mail, Phone, UserPlus, X } from 'lucide-react';
+import { apiFetch } from '../api/client';
+import { t } from '../i18n/translations';
+import type { SupportedLanguage } from '../types/platform';
+import { validateEmailAddress, validatePhoneNumber } from '../utils/investment';
 
 interface AuthModalProps {
   isOpen: boolean;
   initialMode?: 'login' | 'register';
   initialReferralCode?: string;
   brandName: string;
+  lang: SupportedLanguage;
   onClose: () => void;
   onAuthenticated: (token: string, payload: unknown) => void;
 }
@@ -17,27 +20,23 @@ export function AuthModal({
   initialMode = 'login',
   initialReferralCode = '',
   brandName,
+  lang,
   onClose,
   onAuthenticated,
 }: AuthModalProps) {
-  const [mode, setMode] = useState<'login' | 'register' | 'otp'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState(initialReferralCode);
-  const [otp, setOtp] = useState('');
-  const [otpEmail, setOtpEmail] = useState('');
-  const [previewOtp, setPreviewOtp] = useState<string | null>(null);
-  const [sentViaSmtp, setSentViaSmtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
       setError(null);
-      setInfo(null);
       if (initialReferralCode) {
         setReferralCode(initialReferralCode);
       }
@@ -49,78 +48,35 @@ export function AuthModal({
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
 
-    const check = validateGmailAddress(email);
-    if (!check.valid) {
-      setError(check.error ?? 'Valid @gmail.com address required.');
+    const emailCheck = validateEmailAddress(email);
+    if (!emailCheck.valid) {
+      setError(emailCheck.error ?? 'Valid email address required.');
+      return;
+    }
+
+    const phoneCheck = validatePhoneNumber(phoneNumber);
+    if (!phoneCheck.valid) {
+      setError(phoneCheck.error ?? 'Valid phone number required.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await apiFetch<{
-        requiresOtp: boolean;
-        email: string;
-        sentViaSmtp: boolean;
-        previewOtp?: string;
-        message: string;
-      }>('/api/auth/register', {
+      const res = await apiFetch<{ token: string } & Record<string, unknown>>('/api/auth/register', {
         method: 'POST',
         body: {
           fullName: fullName.trim(),
-          email: check.normalized,
+          email: emailCheck.normalized,
+          phoneNumber: phoneCheck.normalized,
           password,
           referralCode: referralCode.trim(),
-        },
-      });
-      setOtpEmail(res.email);
-      setSentViaSmtp(res.sentViaSmtp);
-      setPreviewOtp(res.previewOtp ?? null);
-      setInfo(res.message);
-      setMode('otp');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ token: string } & Record<string, unknown>>('/api/auth/verify-otp', {
-        method: 'POST',
-        body: {
-          email: otpEmail,
-          otp: otp.trim(),
         },
       });
       onAuthenticated(res.token, res);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OTP verification failed.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleResendOtp() {
-    setError(null);
-    setInfo(null);
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ sentViaSmtp: boolean; previewOtp?: string }>('/api/auth/resend-otp', {
-        method: 'POST',
-        body: { email: otpEmail },
-      });
-      setSentViaSmtp(res.sentViaSmtp);
-      setPreviewOtp(res.previewOtp ?? null);
-      setInfo(`A fresh 6-digit OTP was issued for ${otpEmail}.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not resend OTP.');
+      setError(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -129,11 +85,10 @@ export function AuthModal({
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
 
-    const check = validateGmailAddress(email);
-    if (!check.valid) {
-      setError(check.error ?? 'Valid @gmail.com address required.');
+    const emailCheck = validateEmailAddress(email);
+    if (!emailCheck.valid) {
+      setError(emailCheck.error ?? 'Valid email address required.');
       return;
     }
 
@@ -142,20 +97,14 @@ export function AuthModal({
       const res = await apiFetch<{ token: string } & Record<string, unknown>>('/api/auth/login', {
         method: 'POST',
         body: {
-          email: check.normalized,
+          email: emailCheck.normalized,
           password,
         },
       });
       onAuthenticated(res.token, res);
       onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'OTP_REQUIRED' && err.email) {
-        setOtpEmail(err.email);
-        setMode('otp');
-        setError('Your Gmail account is not activated yet. Enter or resend your 6-digit OTP.');
-      } else {
-        setError(err instanceof Error ? err.message : 'Sign in failed.');
-      }
+      setError(err instanceof Error ? err.message : 'Sign in failed.');
     } finally {
       setLoading(false);
     }
@@ -173,9 +122,7 @@ export function AuthModal({
           <div>
             <p className="text-xs font-medium text-[#D4AF37]">{brandName}</p>
             <h2 id="auth-modal-title" className="text-xl font-semibold text-[#F3EFE6] mt-0.5">
-              {mode === 'login' && 'Investor Sign In'}
-              {mode === 'register' && 'Create Gmail Account'}
-              {mode === 'otp' && 'Verify Gmail OTP'}
+              {mode === 'login' ? t(lang, 'signIn') : t(lang, 'register')}
             </h2>
           </div>
           <button
@@ -188,47 +135,40 @@ export function AuthModal({
           </button>
         </div>
 
-        {mode !== 'otp' && (
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#090C11] border border-[#1E2736] mb-5">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError(null);
-              }}
-              className={`min-h-[40px] rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                mode === 'login'
-                  ? 'bg-[#D4AF37] text-[#090C11]'
-                  : 'text-[#9AA4B5] hover:text-[#F3EFE6]'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('register');
-                setError(null);
-              }}
-              className={`min-h-[40px] rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                mode === 'register'
-                  ? 'bg-[#D4AF37] text-[#090C11]'
-                  : 'text-[#9AA4B5] hover:text-[#F3EFE6]'
-              }`}
-            >
-              Register
-            </button>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#090C11] border border-[#1E2736] mb-5">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setError(null);
+            }}
+            className={`min-h-[40px] rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              mode === 'login'
+                ? 'bg-[#D4AF37] text-[#090C11]'
+                : 'text-[#9AA4B5] hover:text-[#F3EFE6]'
+            }`}
+          >
+            {t(lang, 'signIn')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('register');
+              setError(null);
+            }}
+            className={`min-h-[40px] rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              mode === 'register'
+                ? 'bg-[#D4AF37] text-[#090C11]'
+                : 'text-[#9AA4B5] hover:text-[#F3EFE6]'
+            }`}
+          >
+            {t(lang, 'register')}
+          </button>
+        </div>
 
         {error && (
           <div role="alert" className="mb-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3.5 py-2.5 text-sm text-rose-200">
             {error}
-          </div>
-        )}
-        {info && (
-          <div className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2.5 text-sm text-emerald-200">
-            {info}
           </div>
         )}
 
@@ -236,7 +176,7 @@ export function AuthModal({
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label htmlFor="login-email" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
-                Gmail Address
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[#7C8698] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -246,7 +186,7 @@ export function AuthModal({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@gmail.com"
+                  placeholder="investor@example.com"
                   className="w-full min-h-[44px] rounded-xl border border-[#242E3F] bg-[#090C11] pl-10 pr-3.5 text-sm text-[#F3EFE6] placeholder-[#616B7D] focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
@@ -273,13 +213,13 @@ export function AuthModal({
               disabled={loading}
               className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] font-semibold text-sm transition-colors disabled:opacity-60 cursor-pointer"
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? 'Signing In...' : t(lang, 'signIn')}
             </button>
           </form>
         )}
 
         {mode === 'register' && (
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-3.5">
             <div>
               <label htmlFor="reg-name" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
                 Full Name
@@ -296,7 +236,7 @@ export function AuthModal({
             </div>
             <div>
               <label htmlFor="reg-email" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
-                Gmail Address (@gmail.com required)
+                Email Address
               </label>
               <input
                 id="reg-email"
@@ -304,9 +244,26 @@ export function AuthModal({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="investor@gmail.com"
+                placeholder="investor@example.com"
                 className="w-full min-h-[44px] rounded-xl border border-[#242E3F] bg-[#090C11] px-3.5 text-sm text-[#F3EFE6] placeholder-[#616B7D] focus:outline-none focus:border-[#D4AF37]"
               />
+            </div>
+            <div>
+              <label htmlFor="reg-phone" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
+                Phone Number (Required for P2P & Account Activation)
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-[#7C8698] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  id="reg-phone"
+                  type="tel"
+                  required
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+8801700000000"
+                  className="w-full min-h-[44px] rounded-xl border border-[#242E3F] bg-[#090C11] pl-10 pr-3.5 font-mono text-sm text-[#F3EFE6] placeholder-[#616B7D] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
             </div>
             <div>
               <label htmlFor="reg-password" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
@@ -342,81 +299,8 @@ export function AuthModal({
               className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
-              <span>{loading ? 'Sending OTP...' : 'Send Verification OTP'}</span>
+              <span>{loading ? 'Creating Account...' : t(lang, 'register')}</span>
             </button>
-          </form>
-        )}
-
-        {mode === 'otp' && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="rounded-xl border border-[#242E3F] bg-[#090C11] p-3.5 text-xs text-[#A6AEBD] space-y-1.5">
-              <div className="flex items-center gap-2 text-[#F3EFE6] font-medium">
-                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
-                <span>Verifying {otpEmail}</span>
-              </div>
-              <p>
-                {sentViaSmtp
-                  ? 'Enter the 6-digit OTP delivered to your Gmail inbox.'
-                  : 'SMTP mail is in preview mode. Use the verification OTP delivered below to activate your account.'}
-              </p>
-              {previewOtp && (
-                <div className="pt-1 flex items-center justify-between border-t border-[#1D2533]">
-                  <span className="text-[#9AA4B5]">Gmail OTP Delivery:</span>
-                  <span
-                    data-testid="preview-otp-code"
-                    className="font-mono text-base font-semibold tracking-widest text-[#E5C158]"
-                  >
-                    {previewOtp}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="otp-input" className="block text-xs font-medium text-[#B8C0CE] mb-1.5">
-                6-Digit OTP Code
-              </label>
-              <input
-                id="otp-input"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                required
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-                className="w-full min-h-[48px] rounded-xl border border-[#242E3F] bg-[#090C11] px-4 font-mono text-lg tracking-[0.35em] text-center text-[#F3EFE6] placeholder-[#616B7D] focus:outline-none focus:border-[#D4AF37]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full min-h-[44px] rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#090C11] font-semibold text-sm transition-colors disabled:opacity-60 cursor-pointer"
-            >
-              {loading ? 'Activating Account...' : 'Verify & Activate Account'}
-            </button>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={loading}
-                className="text-[#D4AF37] hover:underline cursor-pointer"
-              >
-                Resend OTP
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('register');
-                  setError(null);
-                }}
-                className="text-[#9AA4B5] hover:text-[#F3EFE6] cursor-pointer"
-              >
-                Change Gmail
-              </button>
-            </div>
           </form>
         )}
       </div>

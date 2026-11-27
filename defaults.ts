@@ -1,44 +1,47 @@
 import type { PlatformSettings } from '../types/platform';
 
 export const DEFAULT_SETTINGS: PlatformSettings = {
-  brandName: 'Aurum Capital',
-  brandTagline: 'Institutional Multi-Asset & Precious Metals Yield Platform',
-  heroHeadline: 'Disciplined Daily Yield Across Gold, USD & Global Equities',
+  brandName: 'Aurum Global Investments',
+  brandTagline: 'Multi-Asset & Precious Metals Yield Platform',
+  heroHeadline: 'VIP ($1–$10) Multi-Asset Investment & Daily Ad Rewards',
   heroSubheadline:
-    'Allocate into VIP 1 to VIP 5 tiers starting from $1 with fixed $0.01 daily income per $1 invested and zero lock-in duration.',
+    'Earn $0.01 daily ($0.20 estimated monthly) per $1 invested across fixed-term VIP plans ($1, $2, $3, $4, $5, $6, $7, $10), plus daily ad viewing rewards and 10% referral commissions.',
   announcementBanner:
-    'Platform surplus profit bonuses are distributed directly to active VIP investors whenever trading operations exceed benchmark yield.',
+    'Account activation requires a one-time 40 BDT ($0.40) verification fee via Nagad, Binance P2P, or Trust Wallet (TRC20 / BEP20).',
   extraBonusNotice:
-    'Additional trading bonuses may be distributed to active VIP holders if the platform generates extra trading profit.',
+    'Additional trading bonuses may be distributed to active VIP holders whenever platform trading generates surplus profit.',
   supportEmail: 'support@aurumcapital.example',
   telegramUrl: 'https://t.me/aurumcapital_official',
   minWithdrawalUsd: 1,
   referralCommissionPct: 10,
+  activationFeeBdt: 40,
+  activationFeeUsd: 0.4,
+  defaultAdRewardUsd: 0.02,
   depositGuideSteps: [
     {
       step: 1,
       title: 'Select Payment Method',
-      description: 'Choose Binance (USDT TRC-20) or Trust Wallet (USDT TRC-20) and copy the verified deposit address.',
+      description: 'Choose Nagad (P2P), Binance (P2P), or Trust Wallet USDT (TRC20 / BEP20).',
     },
     {
       step: 2,
-      title: 'Send Exact TRC-20 Transfer',
-      description: 'Transfer the exact VIP plan amount via the Tron (TRC-20) network from your external wallet.',
+      title: 'Send Exact Payment',
+      description: 'Transfer the 40 BDT ($0.40) activation fee or exact VIP plan amount ($1–$10).',
     },
     {
       step: 3,
-      title: 'Save Transaction ID (TxID)',
-      description: 'Copy the blockchain Transaction Hash / TxID shown on your Binance or Trust Wallet receipt.',
+      title: 'Save Transaction ID',
+      description: 'Copy the Transaction ID / TxHash from Nagad, Binance, or Trust Wallet.',
     },
     {
       step: 4,
-      title: 'Submit Proof for Review',
-      description: 'Paste your Transaction ID and select your target asset (Gold, USD, Apple, Meta, or Tesla).',
+      title: 'Submit Proof',
+      description: 'Submit your TxID so the administrator receives an instant approval notification.',
     },
     {
       step: 5,
-      title: 'Admin Verification',
-      description: 'Your deposit remains Pending until verified by an administrator, typically within 5 to 15 minutes.',
+      title: 'Admin Activation',
+      description: 'Admin verifies and activates your account or VIP position promptly.',
     },
   ],
 };
