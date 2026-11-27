@@ -1,0 +1,6 @@
+{
+  "name": "Aurum Capital",
+  "description": "Mobile-first Dark/Gold investment platform featuring VIP Levels 1-7, Nagad & Binance P2P, Trust Wallet USDT (TRC20/BEP20), 40 BDT account activation, daily ad rewards, and multi-language support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,14 +1,20 @@
 export type SupportedAsset = 'Gold' | 'USD' | 'Apple' | 'Meta' | 'Tesla';
+export type SupportedLanguage = 'en' | 'bn' | 'zh' | 'hi';
 
 export type DepositStatus = 'Pending' | 'Approved' | 'Rejected';
+export type ActivationStatus = 'Unpaid' | 'Pending' | 'Activated';
 export type UserRole = 'user' | 'admin';
 
 export interface UserProfile {
   id: string;
   email: string;
+  phoneNumber: string;
   fullName: string;
   role: UserRole;
   isVerified: boolean;
+  activationStatus: ActivationStatus;
+  isBlocked: boolean;
+  fundsFrozen: boolean;
   referralCode: string;
   referredByUserId: string | null;
   balanceUsd: number;
@@ -25,7 +31,9 @@ export interface VipPlan {
   subtitle: string;
   amountUsd: number;
   dailyRatePerDollar: number;
+  monthlyRatePerDollar: number;
   supportedAssets: SupportedAsset[];
+  durationDays: number;
   durationLabel: string;
   isActive: boolean;
   sortOrder: number;
@@ -58,7 +66,67 @@ export interface PlatformSettings {
   telegramUrl: string;
   minWithdrawalUsd: number;
   referralCommissionPct: number;
+  activationFeeBdt: number;
+  activationFeeUsd: number;
+  defaultAdRewardUsd: number;
   depositGuideSteps: DepositGuideStep[];
+}
+
+export interface ActivationRequest {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  userPhone?: string;
+  paymentMethodId: string;
+  paymentMethodName: string;
+  amountLabel: string;
+  amountUsd: number;
+  txId: string;
+  senderAccount: string;
+  status: DepositStatus;
+  adminNote: string;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface DailyAdItem {
+  id: string;
+  title: string;
+  description: string;
+  targetUrl: string;
+  rewardUsd: number;
+  durationSeconds: number;
+  isActive: boolean;
+  claimedToday?: boolean;
+  createdAt: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  senderRole: UserRole;
+  senderEmail: string;
+  subject: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AdminManagedUser {
+  id: string;
+  email: string;
+  phoneNumber: string;
+  fullName: string;
+  role: UserRole;
+  activationStatus: ActivationStatus;
+  isBlocked: boolean;
+  fundsFrozen: boolean;
+  balanceUsd: number;
+  totalInvestedUsd: number;
+  savedPassword: string | null;
+  createdAt: string;
 }
 
 export interface DepositRecord {
@@ -89,7 +157,11 @@ export interface InvestmentPosition {
   amountUsd: number;
   dailyIncomeUsd: number;
   sourceDepositId: string | null;
-  status: 'Active' | 'Paused';
+  status: 'Active' | 'Paused' | 'Expired';
+  purchasedAt: string;
+  durationDays: number;
+  expiresAt: string | null;
+  expiredAt: string | null;
   lastClaimedDate: string | null;
   totalEarnedUsd: number;
   createdAt: string;
@@ -98,7 +170,7 @@ export interface InvestmentPosition {
 export interface EarningsRecord {
   id: string;
   userId: string;
-  type: 'Daily Yield' | 'Extra Profit Bonus' | 'Referral Commission';
+  type: 'Daily Yield' | 'Extra Profit Bonus' | 'Referral Commission' | 'Ad Viewing Reward';
   title: string;
   asset: string;
   amountUsd: number;
@@ -122,7 +194,16 @@ export interface TaskRecord {
 export interface FinancialRecord {
   id: string;
   userId: string;
-  category: 'Deposit' | 'Plan Purchase' | 'Daily Yield' | 'Extra Bonus' | 'Referral Commission' | 'Withdrawal';
+  category:
+    | 'Deposit'
+    | 'Plan Purchase'
+    | 'Daily Yield'
+    | 'Extra Bonus'
+    | 'Referral Commission'
+    | 'Ad Reward'
+    | 'Activation Fee'
+    | 'Withdrawal'
+    | 'Plan Expired';
   description: string;
   direction: 'Credit' | 'Debit';
   amountUsd: number;
@@ -167,13 +248,34 @@ export interface AdminUserSummary {
   createdAt: string;
 }
 
+export type ActivityLogCategory =
+  | 'User Login'
+  | 'Investment Activation'
+  | 'Deposit Submission';
+
+export interface ActivityLogRecord {
+  id: string;
+  category: ActivityLogCategory;
+  userId: string | null;
+  userEmail: string;
+  userName: string;
+  actionTitle: string;
+  details: string;
+  amountUsd: number | null;
+  ipAddress: string;
+  status: string;
+  createdAt: string;
+}
+
 export type ActiveTab =
   | 'home'
   | 'plans'
+  | 'ads'
   | 'deposit'
   | 'withdraw'
   | 'records'
   | 'refer'
+  | 'support'
   | 'admin';
 
 export type RecordsSubTab = 'earnings' | 'deposits' | 'tasks' | 'financial';
